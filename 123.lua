@@ -1,86 +1,79 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+--[[
+  UNIVERSAL ESP Script (Lua/Luau)
+  (โค้ดนี้คือโค้ดที่คุณต้องการอัปโหลดขึ้น GitHub)
+--]]
 
--- 1. สร้างหน้าต่าง (คุณสามารถเปลี่ยนชื่อตรงนี้เป็น F และ By A ได้เลยครับ)
-local Window = Rayfield:CreateWindow({
-   Name = "ESP Panel | มองทะลุ", -- เปลี่ยนตรงนี้เป็น "F" ได้
-   LoadingTitle = "Loading ESP...",
-   LoadingSubtitle = "By Gemini", -- เปลี่ยนตรงนี้เป็น "By A" ได้
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = nil, 
-      FileName = "ESP_Config" -- เปลี่ยนตรงนี้เป็น "free Fire" ได้
-   },
-   KeySystem = false,
-})
-
--- 2. สร้างแท็บ
-local VisualTab = Window:CreateTab("Visuals (ภาพ)", 4483362458)
-
--- 3. ระบบ ESP (Logic)
-local ESP_Enabled = false
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local ESP_TOGGLE = true 
+local ESP_COLOR = Color3.fromRGB(0, 255, 255)
+local ESP_DEPTH = Enum.DepthMode.AlwaysOnTop
 
-local function AddHighlight(player)
-    if player.Character and not player.Character:FindFirstChild("ESPHighlight") then
-        local highlight = Instance.new("Highlight")
-        highlight.Name = "ESPHighlight"
-        highlight.Adornee = player.Character
-        highlight.FillColor = Color3.fromRGB(255, 0, 0) -- สีตัว (แดง)
-        highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- สีขอบ (ขาว)
-        highlight.FillTransparency = 0.5
-        highlight.OutlineTransparency = 0
-        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop -- คำสั่งที่ทำให้มองทะลุกำแพง
-        highlight.Parent = player.Character
+local function createHighlight(instance)
+    if instance:FindFirstChild("ESPHighlight") then
+        return instance:FindFirstChild("ESPHighlight")
     end
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESPHighlight"
+    highlight.FillColor = ESP_COLOR
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.Adornee = instance
+    highlight.FillTransparency = 0.6
+    highlight.DepthMode = ESP_DEPTH
+    highlight.Parent = instance
+    return highlight
 end
 
-local function RemoveHighlight(player)
-    if player.Character and player.Character:FindFirstChild("ESPHighlight") then
-        player.Character.ESPHighlight:Destroy()
+local function updateESP()
+    if not ESP_TOGGLE or not LocalPlayer then
+        return
     end
-end
 
-local function UpdateESP()
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= Players.LocalPlayer then
-            if ESP_Enabled then
-                AddHighlight(player)
+        if player == LocalPlayer then
+            pcall(function()
+                player.Character:FindFirstChild("ESPHighlight"):Destroy()
+            end)
+            continue
+        end
+
+        local Character = player.Character
+
+        if Character and Character.Parent then
+            local success, humanoid = pcall(function()
+                return Character:FindFirstChildOfClass("Humanoid")
+            end)
+
+            if success and humanoid and humanoid.Health > 0 then
+                local PartToAdorn = Character:FindFirstChild("HumanoidRootPart") or Character
+
+                if PartToAdorn then
+                    createHighlight(PartToAdorn)
+                end
             else
-                RemoveHighlight(player)
+                pcall(function()
+                    Character:FindFirstChild("ESPHighlight"):Destroy()
+                end)
             end
         end
     end
 end
 
--- อัปเดตตลอดเวลาเมื่อมีคนตาย/เกิดใหม่
-RunService.RenderStepped:Connect(function()
-    if ESP_Enabled then
-        UpdateESP()
+RunService.RenderStepped:Connect(updateESP)
+
+-- ทำให้สามารถควบคุมได้ผ่าน Console/Executor Command
+function toggleESP()
+    ESP_TOGGLE = not ESP_TOGGLE
+    print("[ESP Toggle]: ESP ตอนนี้สถานะ: " .. tostring(ESP_TOGGLE))
+    
+    if not ESP_TOGGLE then
+        for _, player in pairs(Players:GetPlayers()) do
+            pcall(function()
+                player.Character:FindFirstChild("ESPHighlight"):Destroy()
+            end)
+        end
     end
-end)
+end
 
--- 4. สร้างปุ่ม Toggle ในเมนู
-VisualTab:CreateToggle({
-   Name = "เปิด/ปิด มองทะลุ (ESP Player)",
-   CurrentValue = false,
-   Flag = "ESP_Toggle", 
-   Callback = function(Value)
-       ESP_Enabled = Value
-       
-       if not Value then
-           -- ถ้าปิด ให้ลบ ESP ออกทันที
-           for _, player in pairs(Players:GetPlayers()) do
-               RemoveHighlight(player)
-           end
-       end
-   end,
-})
-
--- แจ้งเตือนเมื่อโหลดเสร็จ
-Rayfield:Notify({
-   Title = "พร้อมใช้งาน",
-   Content = "ระบบ ESP โหลดเสร็จสิ้น",
-   Duration = 5,
-   Image = 4483362458,
-})
+print("✅ ESP Script Loaded Successfully!")
